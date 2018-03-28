@@ -1,0 +1,8 @@
+---
+ldap_client_packages:
+  - openldap-clients
+  - sssd
+
+ldap_server_ips: "{% for host in groups['ldapserver'] %}ldap://{{ hostvars[host]['ansible_default_ipv4']['address'] }}{% if not loop.last %},{% endif %}{% endfor %}"
+ldap_server_fqdn: "ldap://{{ openldap_ssl_cn }}"
+ldap_server_uri: "{{ openldap_ssl | bool | ternary(ldap_server_fqdn,ldap_server_ips) }}"

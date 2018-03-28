@@ -1,0 +1,48 @@
+---
+- name: Install ldap packages
+  yum:
+    pkg: "{{ item }}"
+    state: "present"
+    update_cache: yes
+  register: install_packages
+  until: install_packages|success
+  retries: 5
+  delay: 3
+  with_items: "{{ ldap_server_packages }}"
+  tags:
+    - ldap-install
+
+- name: Install ldap pip packges
+  pip:
+    name: "{{ item  }}"
+    state: present
+  with_items: "{{ ldap_pip_packages }}"
+  tags:
+   - ldap-install
+
+- name: create ldap root password
+  command: "slappasswd -s {{ ldap_admin_info.admin_password }}"
+  register: _root_password
+  changed_when: _root_password.rc != 0
+  tags:
+    - ldap-install
+
+- name: save slappasswd output as a fact
+  set_fact: 
+    ldap_output_password_fact: "{{ _root_password.stdout }}"
+  when: _root_password.rc == 0
+  tags:
+    - ldap-install
+
+- name: Set LDAP IP address
+  lineinfile:
+    path: /etc/sysconfig/slapd
+    line: 'SLAPD_URLS="ldapi:/// ldap://{{ ansible_default_ipv4.address }}"'
+
+- name: start ldap service
+  systemd:
+    name: slapd
+    state: restarted
+    enabled: True
+  tags:
+   - ldap-install

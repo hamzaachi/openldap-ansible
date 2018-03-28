@@ -1,0 +1,18 @@
+---
+- name: drop database.ldif file
+  template:
+    src: "database.ldif.j2"
+    dest: "/tmp/database.ldif"
+    mode: 0644
+  tags:
+    - ldap-database
+    - ldap-ldif-files
+
+- name: config ldap database
+  command: "ldapmodify -w {{ ldap_admin_info.admin_password }} -Y EXTERNAL -H ldapi:/// -f /tmp/database.ldif"
+  register: ldap_database
+  changed_when: ldap_database.rc != 0
+  notify:
+    - restart ldap
+  tags:
+    - ldap-database

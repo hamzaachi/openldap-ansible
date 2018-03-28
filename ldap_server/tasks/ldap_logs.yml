@@ -1,0 +1,13 @@
+---
+- name: add ldap log entry
+  lineinfile:
+    path: /etc/rsyslog.conf
+    state: present
+    line: "local4.* /var/log/ldap.log"
+    owner: root
+    group: root
+    mode: 0644
+  notify:
+    - restart rsyslog
+  tags:
+    - ldap-log

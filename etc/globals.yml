@@ -1,0 +1,31 @@
+---
+is_ldap_ha_enabled: "{{ (groups['ldapserver'] is defined) and (groups['ldapserver'] | length > 1) }}"
+## valid options are : 'mm' for Master-Master replication OR 'ms' for Master-Slave replication
+ldap_ha_mode: "{{ 'mm' if is_ldap_ha_enabled | bool else '' }}"
+#############################################################################
+
+ldap_admin_info:
+  domain_name:  cdta.dz
+  admin_name: ldapadmin
+  admin_password: azerty
+#############################################################################
+# In this list you can define the OpenLDAP groups and users, a group can have no users. 
+# If you would like to limit the login time set the 'session_duration' variable of the corresponding group(s) as shown below
+ldap_groups_users_list:
+  - groupname: group01
+    state: present
+    session_duration: 08:00-18:00
+    users:
+     - { username: "user01", password: "user01", state: "present" }
+     - { username: "user02", password: "user02", state: "present" }
+  - groupname: group02
+    state: present
+
+limited_login_groups: "{{ ldap_groups_users_list | selectattr('session_duration', 'defined') | map(attribute='groupname') | list | join(',') }}"
+
+## openldap SSL
+openldap_ssl: true
+openldap_ssl_cn: ldapsrv.cdta.dz
+openldap_ssl_cert: "certs/ldap.cert.pem"
+openldap_ssl_key: "certs/ldap.key.pem"
+openldap_ssl_ca_cert: "certs/ca.cert.pem"

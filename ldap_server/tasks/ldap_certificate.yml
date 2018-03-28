@@ -1,0 +1,51 @@
+---
+- name: Drop ssl cert files
+  copy:
+    src: "{{ item }}"
+    dest: "/etc/openldap/{{ item }}"
+    owner: "root"
+    group: "root"
+    mode: "0644"
+  register: ldap_certs
+  with_items:
+    - "{{ openldap_ssl_cert }}"
+    - "{{ openldap_ssl_key }}"
+    - "{{ openldap_ssl_ca_cert }}"
+  tags:
+    - ldap-ssl-certs
+  
+- name: change certificate ownership
+  shell: |
+       chown -R ldap:ldap /etc/openldap/certs/*.pem
+       chmod 440 /etc/openldap/certs/*.pem
+  register: certs_ownership
+  failed_when: false
+  changed_when: certs_ownership.rc != 0
+  tags:
+    - ldap-ssl-certs
+
+- name: drop certificate.ldif file
+  template:
+    src: "certificate.ldif.j2"
+    dest: "/tmp/certificate.ldif"
+    mode: 0644
+  tags:
+    - ldap-ssl-certs
+
+- name : set the CN in ldap.conf
+  replace:
+    path: /etc/openldap/ldap.conf
+    regexp: '^TLS_CACERTDIR.*$'
+    replace: "TLS_CACERT /etc/openldap/{{ openldap_ssl_ca_cert }}"
+  tags:
+    - ldap-ssl-certs
+    - CN
+
+- name: config ldap cert
+  command: "ldapmodify -w {{ ldap_admin_info.admin_password }} -Y EXTERNAL -H ldapi:/// -f /tmp/certificate.ldif"
+  register: ldap_certificate
+  changed_when: ldap_certificate.rc != 0
+  notify:
+    - restart ldap
+  tags:
+    - ldap-ssl-certs

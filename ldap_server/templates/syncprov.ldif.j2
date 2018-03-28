@@ -1,0 +1,13 @@
+{% if ldap_ha_mode | lower != 'mm' %}
+dn: olcOverlay=syncprov,olcDatabase={2}hdb,cn=config
+objectClass: olcOverlayConfig
+objectClass: olcSyncProvConfig
+olcOverlay: syncprov
+olcSpSessionLog: 100
+{% else %}
+dn: olcOverlay=syncprov,olcDatabase={2}hdb,cn=config
+changetype: add
+objectClass: olcOverlayConfig
+objectClass: olcSyncProvConfig
+olcOverlay: syncprov
+{% endif %}

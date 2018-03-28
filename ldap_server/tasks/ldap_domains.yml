@@ -1,0 +1,21 @@
+---
+- name: drop domain_template.ldif file
+  template:
+    src: "domain_template.ldif.j2"
+    dest: "/tmp/{{ ldap_admin_info.domain_name.split('.')[0] }}.ldif"
+    mode: 0644
+  tags:
+    - ldap-domain
+    - ldap-ldif-files
+
+- name: config ldap domain
+  command: >
+    ldapadd -x -w {{ ldap_admin_info.admin_password }} -h "{{ ansible_default_ipv4['address'] }}" -D "cn={{ ldap_admin_info.admin_name }},dc={{ ldap_admin_info.domain_name.split('.')[0] }},dc={{ ldap_admin_info.domain_name.split('.')[1] }}"
+    -f /tmp/{{ ldap_admin_info.domain_name.split('.')[0] }}.ldif
+  register: ldap_domain
+  failed_when: false
+  changed_when: ldap_domain.rc != 0
+  notify:
+    - restart ldap
+  tags:
+    - ldap-domain

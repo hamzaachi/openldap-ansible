@@ -1,0 +1,11 @@
+---
+- name: Apply role ldapserver
+  hosts: ldapserver
+  roles:
+    - { role: ldap_server, tags: ldapserver }
+
+- name: Apply role ldapclient
+  hosts: ldapclient
+  roles:
+    - { role: ldap_client, tags: ldapclient }
+

@@ -1,0 +1,11 @@
+#!/usr/bin/env bash
+set -u -x
+
+while read var
+do
+        /usr/bin/ping -q -c 3 $(echo $var | cut -f2 -d':') > /dev/null
+        if [ $? -eq 0 ]; then
+            /usr/bin/sed -i "s/.*{{ openldap_ssl_cn }}/$(echo $var | cut -f2 -d':') {{ openldap_ssl_cn }}/" /etc/hosts
+            exit 0
+        fi
+done < <(tr ' ' '\n' < /root/openldap_server_hosts)

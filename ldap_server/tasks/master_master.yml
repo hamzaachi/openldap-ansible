@@ -1,0 +1,148 @@
+---
+- name: drop syncprov_mod.ldif file
+  template:
+    src: "syncprov_mod.ldif.j2"
+    dest: "/tmp/syncprov_mod.ldif"
+    mode: 0644
+  tags:
+    - ldap-syncprov_mod
+    - ldap-ldif-files
+
+- name: config ldap syncprov_mod
+  command: "ldapadd -w {{ ldap_admin_info.admin_password }} -Y EXTERNAL -H ldapi:/// -f /tmp/syncprov_mod.ldif"
+  register: ldap_syncprov_mod
+  changed_when: ldap_syncprov_mod.rc != 0
+  failed_when: ldap_syncprov_mod.rc != 0 and ldap_syncprov_mod.rc != 80
+  notify:
+    - restart ldap
+  tags:
+    - ldap-syncprov_mod
+
+- name: drop olcserverid.ldif file
+  template:
+    src: "olcserverid.ldif.j2"
+    dest: "/tmp/olcserverid.ldif"
+    mode: 0644
+  tags:
+    - ldap-olcserverid-drop
+    - ldap-ldif-files
+
+- name: config ldap olcserverid
+  command: "ldapmodify -w {{ ldap_admin_info.admin_password }} -Y EXTERNAL -H ldapi:/// -f /tmp/olcserverid.ldif"
+  register: ldap_olcserverid
+  changed_when: ldap_olcserverid.rc != 80
+  failed_when: ldap_olcserverid.rc != 0 and ldap_olcserverid.rc != 80 and ldap_olcserverid.rc != 20
+  notify:
+    - restart ldap
+  tags:
+    - ldap-olcserverid
+
+- name: drop olcdatabase.ldif file
+  template:
+    src: "olcdatabase.ldif.j2"
+    dest: "/tmp/olcdatabase.ldif"
+    mode: 0644
+  tags:
+    - ldap-olcdatabase
+    - ldap-ldif-files
+
+- name: config olcdatabase
+  command: "ldapmodify -w {{ ldap_admin_info.admin_password }} -Y EXTERNAL -H ldapi:/// -f /tmp/olcdatabase.ldif"
+  register: olcdatabase
+  changed_when: olcdatabase.rc != 18
+  failed_when: olcdatabase.rc != 0 and olcdatabase.rc != 18
+  notify:
+    - restart ldap
+  tags:
+    - ldap-olcdatabase
+
+- name: drop replication.ldif file
+  template:
+    src: "replication_mm.ldif.j2"
+    dest: "/tmp/replication_mm.ldif"
+    mode: 0644
+  tags:
+    - ldap-repli-drop
+    - ldap-ldif-files
+
+- name: config ldap repli
+  command: "ldapmodify -w {{ ldap_admin_info.admin_password }} -Y EXTERNAL -H ldapi:/// -f /tmp/replication_mm.ldif"
+  register: ldap_repli
+  changed_when: ldap_repli.rc != 20
+  failed_when: ldap_repli.rc != 0 and ldap_repli.rc != 20
+  tags:
+    - ldap-repli
+
+- name: restart ldap service
+  systemd:
+    name: slapd
+    state: restarted
+    enabled: True
+
+- name: drop syncprov.ldif file
+  template:
+    src: "syncprov.ldif.j2"
+    dest: "/tmp/syncprov.ldif"
+    mode: 0644
+  tags:
+    - ldap-syncprov
+    - ldap-ldif-files
+  when: 
+    - inventory_hostname == groups['ldapserver'][0]
+
+- name: config ldap syncprov
+  command: "ldapadd -w {{ ldap_admin_info.admin_password }} -Y EXTERNAL -H ldapi:/// -f /tmp/syncprov.ldif"
+  register: ldap_syncprov
+  changed_when: ldap_syncprov.rc != 0
+  notify:
+    - restart ldap
+  tags:
+    - ldap-syncprov
+  when: 
+    - inventory_hostname == groups['ldapserver'][0]
+
+- name: drop olcdatabasehdb.ldif file
+  template:
+    src: "olcdatabasehdb.ldif.j2"
+    dest: "/tmp/olcdatabasehdb.ldif"
+    mode: 0644
+  tags:
+    - ldap-olcdatabasehdb-drop
+    - ldap-ldif-files
+  when: 
+    - inventory_hostname == groups['ldapserver'][0]
+
+- name: config ldap olcdatabasehdb
+  command: "ldapmodify -w {{ ldap_admin_info.admin_password }} -Y EXTERNAL -H ldapi:/// -f /tmp/olcdatabasehdb.ldif"
+  register: olcdatabasehdb
+  changed_when: olcdatabasehdb.rc != 20
+  failed_when: olcdatabasehdb.rc != 0 and olcdatabasehdb.rc != 20
+  notify:
+    - restart ldap
+  tags:
+    - ldap-olcdatabasehdb
+  when: 
+    - inventory_hostname == groups['ldapserver'][0]
+
+- import_tasks: ldap_monitor.yml
+  when: 
+    - inventory_hostname == groups['ldapserver'][0]
+
+- name: config ldap schemas
+  command: "{{ item }}"
+  register: ldap_schemas
+  failed_when: false
+  changed_when: ldap_schemas.rc != 0
+  with_items:
+    - "ldapadd -w {{ ldap_admin_info.admin_password }} -Y EXTERNAL -H ldapi:/// -f /etc/openldap/schema/cosine.ldif"
+    - "ldapadd -w {{ ldap_admin_info.admin_password }} -Y EXTERNAL -H ldapi:/// -f /etc/openldap/schema/nis.ldif"
+    - "ldapadd -w {{ ldap_admin_info.admin_password }} -Y EXTERNAL -H ldapi:/// -f /etc/openldap/schema/inetorgperson.ldif"
+  tags:
+    - setup_schemas
+  when:
+    - inventory_hostname == groups['ldapserver'][0]
+
+- import_tasks: ldap_domains.yml
+  when: 
+    - inventory_hostname == groups['ldapserver'][0]
+

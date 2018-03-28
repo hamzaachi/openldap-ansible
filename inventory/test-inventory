@@ -1,0 +1,5 @@
+[ldapserver]
+localhost       ansible_connection=local
+
+[ldapclient]
+localhost       ansible_connection=local

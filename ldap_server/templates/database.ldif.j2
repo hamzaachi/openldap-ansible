@@ -1,0 +1,14 @@
+dn: olcDatabase={2}hdb,cn=config
+changetype: modify
+replace: olcsuffix
+olcsuffix: dc={{ ldap_admin_info.domain_name.split('.')[0] }},dc={{ ldap_admin_info.domain_name.split('.')[1] }}
+
+dn: olcDatabase={2}hdb,cn=config
+changetype: modify
+replace: olcRootDN
+olcRootDN: cn={{ ldap_admin_info.admin_name }},dc={{ ldap_admin_info.domain_name.split('.')[0] }},dc={{ ldap_admin_info.domain_name.split('.')[1] }}
+
+dn: olcDatabase={2}hdb,cn=config
+changetype: modify
+replace: olcRootPW
+olcRootPW: {{ ldap_output_password_fact }}

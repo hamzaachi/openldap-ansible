@@ -1,0 +1,59 @@
+# {{ ansible_managed }}
+[sssd]
+config_file_version = 2
+services = nss, pam, sudo
+domains = LDAP
+
+[domain/LDAP]
+cache_credentials = true
+enumerate = false
+
+id_provider = ldap
+auth_provider = ldap
+sudo_provider = ldap
+ldap_schema = rfc2307bis
+
+id_provider = ldap
+auth_provider = ldap
+{% if limited_login_groups is defined and limited_login_groups | length > 0 %}
+access_provider = simple
+#simple_deny_groups = {{ limited_login_groups }}
+{% endif %}
+ldap_uri = {{ ldap_server_uri }}
+ldap_search_base = dc={{ ldap_admin_info.domain_name.split('.')[0] }},dc={{ ldap_admin_info.domain_name.split('.')[1] }}
+ldap_default_bind_dn = cn={{ ldap_admin_info.admin_name }},dc={{ ldap_admin_info.domain_name.split('.')[0] }},dc={{ ldap_admin_info.domain_name.split('.')[1] }}
+ldap_default_authtok_type = password
+ldap_default_authtok = {{ ldap_admin_info.admin_password }}
+ldap_user_object_class = posixAccount
+{% if openldap_ssl | bool %}
+ldap_tls_cacert = /etc/openldap/{{ openldap_ssl_ca_cert }}
+ldap_id_use_start_tls = true
+ldap_tls_reqcert = demand
+{% else %}
+ldap_tls_reqcert = allow
+{% endif %}
+use_fully_qualified_names = false
+chpass_provider = ldap
+ldap_chpass_uri = {{ ldap_server_uri }}
+entry_cache_timeout = 600
+ldap_network_timeout = 2
+ldap_user_name = uid
+
+[nss]
+homedir_substring = /home
+filter_users = root,ldap,named
+filter_groups = root
+
+[pam]
+
+[sudo]
+
+[autofs]
+
+[ssh]
+
+[pac]
+
+[ifp]
+
+[secrets]

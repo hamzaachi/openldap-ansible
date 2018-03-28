@@ -1,0 +1,25 @@
+dn: cn=config
+changetype: modify
+replace: olcServerID
+{% for host in ansible_play_hosts %}
+olcServerID: {{ ansible_play_hosts.index(host) + 1 }} ldap://{{ hostvars[host]['ansible_default_ipv4']['address'] }}
+{% endfor %}
+
+dn: olcOverlay=syncprov,olcDatabase={0}config,cn=config
+changetype: add
+objectClass: olcOverlayConfig
+objectClass: olcSyncProvConfig
+olcOverlay: syncprov
+
+
+dn: olcDatabase={0}config,cn=config
+changetype: modify
+add: olcSyncRepl
+{% for host in ansible_play_hosts %}
+olcSyncRepl: rid=00{{ ansible_play_hosts.index(host) + 1 }} provider=ldap://{{ hostvars[host]['ansible_default_ipv4']['address'] }} binddn="cn=config"
+  bindmethod=simple credentials={{ ldap_admin_info.admin_password }} searchbase="cn=config"
+  type=refreshAndPersist retry="5 5 300 5" timeout=1
+{% endfor %}
+-
+add: olcMirrorMode
+olcMirrorMode: TRUE

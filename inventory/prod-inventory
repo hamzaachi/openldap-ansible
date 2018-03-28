@@ -1,0 +1,8 @@
+
+[ldapserver]
+ldap-master01
+ldap-master02
+ldap-master03
+
+[ldapclient]
+ldap-client

@@ -1,0 +1,26 @@
+dn: olcDatabase={2}hdb,cn=config
+changetype: modify
+replace: olcSuffix
+olcSuffix: dc={{ ldap_admin_info.domain_name.split('.')[0] }},dc={{ ldap_admin_info.domain_name.split('.')[1] }}
+-
+replace: olcRootDN
+olcRootDN: cn={{ ldap_admin_info.admin_name }},dc={{ ldap_admin_info.domain_name.split('.')[0] }},dc={{ ldap_admin_info.domain_name.split('.')[1] }}
+-
+replace: olcRootPW
+olcRootPW: {{ ldap_output_password_fact }}
+-
+add: olcSyncRepl
+{% for host in ansible_play_hosts %}
+olcSyncRepl: rid=00{{ ansible_play_hosts | length + ( ansible_play_hosts.index(host) + 1 ) }} provider=ldap://{{ hostvars[host]['ansible_default_ipv4']['address'] }} binddn="cn={{ ldap_admin_info.admin_name }},dc={{ ldap_admin_info.domain_name.split('.')[0] }},dc={{ ldap_admin_info.domain_name.split('.')[1] }}" bindmethod=simple
+  credentials={{ ldap_admin_info.admin_password }} searchbase="dc={{ ldap_admin_info.domain_name.split('.')[0] }},dc={{ ldap_admin_info.domain_name.split('.')[1] }}" type=refreshOnly
+  interval=00:00:00:10 retry="5 5 300 5" timeout=1
+{% endfor %}
+-
+add: olcDbIndex
+olcDbIndex: entryUUID  eq
+-
+add: olcDbIndex
+olcDbIndex: entryCSN  eq
+-
+add: olcMirrorMode
+olcMirrorMode: TRUE

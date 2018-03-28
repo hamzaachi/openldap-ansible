@@ -1,0 +1,19 @@
+---
+ldap_server_packages:
+ - openldap 
+ - compat-openldap 
+ - openldap-clients 
+ - openldap-servers
+ - openldap-servers-sql
+ - openldap-devel
+
+ldap_pip_packages:
+ - python-ldap
+
+OnServer: "{{ groups['ldapserver'][0] }}"
+
+host_index: "{{ groups['ldapserver'].index(inventory_hostname) }}"
+rid_ms: "{{ '00' + host_index }}"
+ServerID: "{{ 1 + host_index | int }}"
+
+OnClient: "{{ groups['ldapclient'][0] }}"

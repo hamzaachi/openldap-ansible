@@ -1,0 +1,95 @@
+---
+- name: Add or remove LDAP Groups
+  ldap_entry:
+     dn: "cn={{ item.groupname }},ou=Group,dc={{ ldap_admin_info.domain_name.split('.')[0] }},dc={{ ldap_admin_info.domain_name.split('.')[1] }}"
+     state: "{{ item.state }}"
+     objectClass: 
+        - top
+        - posixGroup
+     attributes:
+        cn: "{{ item.groupname }}"
+        gidNumber: "{{ 20000 |random(start=10000,seed=item.groupname)  }}"
+     server_uri: "ldap://{{ hostvars[OnServer]['ansible_default_ipv4']['address'] }}/"
+     bind_dn: "cn={{ ldap_admin_info.admin_name }},dc={{ ldap_admin_info.domain_name.split('.')[0] }},dc={{ ldap_admin_info.domain_name.split('.')[1] }}"
+     bind_pw: "{{ ldap_admin_info.admin_password }}"
+     validate_certs: no
+  register: ldap_groups
+  with_items:
+    - "{{ ldap_groups_users_list }}"
+  when: 
+    - inventory_hostname == OnServer
+  tags:
+    - ldap-groups
+
+
+- name: Add or remove LDAP users
+  ldap_entry:
+     dn: "uid={{ item.1.username }},ou=People,dc={{ ldap_admin_info.domain_name.split('.')[0] }},dc={{ ldap_admin_info.domain_name.split('.')[1] }}"
+     state: "{{ item.1.state }}"
+     objectClass: 
+        - top
+        - account
+        - posixAccount
+        - shadowAccount
+     attributes:
+        cn: "{{ item.1.username }}"
+        uid: "{{ item.1.username }}"
+        homeDirectory: "/home/{{ item.1.username }}"
+        uidNumber: "{{ 60000 |random(start=20001,seed=item.1.username)  }}"
+        gidNumber: 100
+        loginShell: /bin/bash
+        gecos: "{{ item.1.username }} [simple user at {{ ldap_admin_info.domain_name.split('.')[0] }}]"
+        userPassword: "{{ item.1.password }}"
+        shadowLastChange: 17058
+        shadowMin: 0
+        shadowMax: 99999
+        shadowWarning: 7
+     server_uri: "ldap://{{ hostvars[OnServer]['ansible_default_ipv4']['address'] }}/"
+     bind_dn: "cn={{ ldap_admin_info.admin_name }},dc={{ ldap_admin_info.domain_name.split('.')[0] }},dc={{ ldap_admin_info.domain_name.split('.')[1] }}"
+     bind_pw: "{{ ldap_admin_info.admin_password }}"
+     validate_certs: no
+  register: ldap_users
+  with_subelements: 
+    - "{{ ldap_groups_users_list }}"
+    - users
+    - skip_missing: true
+  when:
+    - inventory_hostname == OnServer
+  tags:
+    - ldap-users
+
+- name: Mapping users to Groups
+  ldap_attr:
+     dn: "cn={{ item.0.groupname }},ou=Group,dc={{ ldap_admin_info.domain_name.split('.')[0] }},dc={{ ldap_admin_info.domain_name.split('.')[1] }}"
+     state: "{{ item.1.state }}"
+     name: memberUid
+     values: "{{ item.1.username  }}"
+     server_uri: "ldap://{{ hostvars[OnServer]['ansible_default_ipv4']['address'] }}/"
+     bind_dn: "cn={{ ldap_admin_info.admin_name }},dc={{ ldap_admin_info.domain_name.split('.')[0] }},dc={{ ldap_admin_info.domain_name.split('.')[1] }}"
+     bind_pw: "{{ ldap_admin_info.admin_password }}"
+     validate_certs: no
+  register: ldap_mapping
+  with_subelements:
+    - "{{ ldap_groups_users_list }}"
+    - users
+    - skip_missing: true
+  when:
+    - inventory_hostname == OnServer
+    - item.0.state == 'present'
+  tags:
+    - ldap-mapping
+
+- name: remove the home directory of the removed LDAP users
+  file:
+    path: "/home/{{ item.1.username }}"
+    state: absent
+  when: 
+   - item.1.state == 'absent'
+  failed_when: false
+  with_subelements:
+    - "{{ ldap_groups_users_list }}"
+    - users
+    - skip_missing: true
+  delegate_to: "{{ OnClient }}"
+  tags:
+    - ldap-remove-home

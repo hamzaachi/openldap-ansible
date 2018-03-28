@@ -1,0 +1,45 @@
+---
+- import_tasks: ldap_install.yml
+
+- import_tasks: ldap_database.yml
+  when: 
+   - ldap_ha_mode | lower != 'mm'
+
+- import_tasks: ldap_monitor.yml
+  when: 
+   - ldap_ha_mode | lower != 'mm'
+
+- import_tasks: ldap_certificate.yml
+  when:
+   - openldap_ssl | bool
+
+- import_tasks: ldap_database_setup.yml
+
+- import_tasks: ldap_domains.yml
+  when: 
+   - ldap_ha_mode | lower != 'mm'
+
+- import_tasks: ldap_logs.yml
+
+- import_tasks: master_master.yml
+  when: 
+   - ldap_ha_mode is defined
+   - ldap_ha_mode | lower == 'mm'
+  tags:
+   - ldap-ha-mm
+
+- import_tasks: master_slave.yml
+  when: 
+   - ldap_ha_mode is defined
+   - ldap_ha_mode | lower == 'ms'
+  vars:
+   - ldap_replica_user:
+        username: replicauser
+        password: 18.20Wk_o
+        state: present
+  tags:
+   - ldap-ha-ms
+
+- import_tasks: ldap_users.yml
+  tags:
+   - ldap-gr-usr

@@ -1,0 +1,133 @@
+---
+- name: install ldap client packages
+  yum:
+    pkg: "{{ item }}"
+    state: "present"
+    update_cache: yes
+  register: install_packages
+  until: install_packages|success
+  retries: 5
+  delay: 2
+  with_items: "{{ ldap_client_packages }}"
+  tags:
+    - ldap-client
+
+- name: Drop ssl cert files
+  copy:
+    src: "{{ item }}"
+    dest: "/etc/openldap/{{ item }}"
+    owner: "root"
+    group: "root"
+    mode: "0644"
+  with_items:
+    - "{{ openldap_ssl_ca_cert }}"
+  when:
+    - openldap_ssl | bool
+  tags:
+    - ldap-ssl-certs
+
+- name : set the CN in ldap.conf
+  replace:
+    path: /etc/openldap/ldap.conf
+    regexp: '^TLS_CACERTDIR.*$'
+    replace: "TLS_CACERT /etc/openldap/{{ openldap_ssl_ca_cert }}"
+  tags:
+    - ldap-ssl-certs
+    - CN
+
+- name: drop sssd conf file
+  template:
+    src: sssd.conf.j2
+    dest: /etc/sssd/sssd.conf
+    owner: root
+    mode: 0600
+  notify:
+    - restart sssd
+  tags:
+    - ldap-client
+
+- name: drop sys-auth conf file
+  template:
+    src: system-auth.j2
+    dest: /etc/pam.d/system-auth
+    owner: root
+  notify:
+    - restart sssd
+  tags:
+    - ldap-client
+
+- name: drop pw-auth conf file
+  template:
+    src: password-auth.j2
+    dest: /etc/pam.d/password-auth
+    owner: root
+  notify:
+    - restart sssd
+  tags:
+    - ldap-client
+
+- name: setup ldap IP addresses
+  command: >
+    authconfig --enablesssd --enablesssdauth --enableldap --enableldapauth --enablemkhomedir --ldapserver={{ ldap_server_uri }}
+    --ldapbasedn="dc={{ ldap_admin_info.domain_name.split('.')[0] }},dc={{ ldap_admin_info.domain_name.split('.')[1] }}" 
+    --enablemkhomedir --update
+  register: ldap_auth
+  failed_when: ldap_auth.rc != 0
+  notify:
+    - restart sssd
+  tags:
+    - ldap-client
+
+- name: Set start login Time job
+  cron:
+    name: "start-login"
+    minute: "{{ item.session_duration.split('-')[0].split(':')[1] }}"
+    hour: "{{ item.session_duration.split('-')[0].split(':')[0] }}"
+    day: "*"
+    user: "root"
+    state: "{{ item.session_duration is defined | ternary('present','absent') }}"
+    job: "/bin/sed -i 's|^simple_deny_groups =.*|#simple_deny_groups = {{ limited_login_groups }}|g' /etc/sssd/sssd.conf && /bin/systemctl restart sssd"
+  with_items:
+    - "{{ ldap_groups_users_list }}"
+  when:
+    - item.session_duration is defined
+  tags:
+   - session-time
+
+- name: Set end login Time job
+  cron:
+    name: "end-login"
+    minute: "{{ item.session_duration.split('-')[1].split(':')[1] }}"
+    hour: "{{ item.session_duration.split('-')[1].split(':')[0] }}"
+    day: "*"
+    user: "root"
+    state: "{{ item.session_duration is defined | ternary('present','absent') }}"
+    job: "/bin/sed -i 's|^#simple_deny_groups.*|simple_deny_groups = {{ limited_login_groups }}|g' /etc/sssd/sssd.conf && /bin/systemctl restart sssd"
+  with_items:
+    - "{{ ldap_groups_users_list }}"
+  when:
+    - item.session_duration is defined
+  tags:
+   - session-time
+
+- name: Drop OpenLDAP setter script
+  template:
+   src: openldap_server_setter.sh.j2
+   dest: /etc/openldap/openldap_server_setter.sh
+   owner: root
+   group: root
+   mode: 0755
+  tags:
+   - select-server
+
+- name: Select one alive server job
+  cron:
+    name: "select-server"
+    minute: "*/1"
+    hour: "*"
+    day: "*"
+    user: root
+    state: present
+    job: "/etc/openldap/openldap_server_setter.sh"
+  tags:
+    - select-server

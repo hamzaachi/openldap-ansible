@@ -1,0 +1,128 @@
+---
+- name: Drop the ldif file for replication
+  template:
+    src: "user_rp.ldif.j2"
+    dest: "/tmp/user_rp.ldif"
+    mode: 0644
+  notify:
+    - restart ldap
+  register: ldap_replica_user
+  when: 
+    - inventory_hostname == groups['ldapserver'][0]
+  tags:
+    - ldap-replica-user-drop
+    - ldap-ldif-files
+
+- name: config an account for replication
+  command: >
+     ldapadd -w {{ ldap_admin_info.admin_password }} -D 
+     "cn={{ ldap_admin_info.admin_name }},dc={{ ldap_admin_info.domain_name.split('.')[0] }},dc={{ ldap_admin_info.domain_name.split('.')[1] }}" -f /tmp/user_rp.ldif
+  register: user_rp
+  changed_when: user_rp.rc != 68
+  failed_when: user_rp.rc != 68 and user_rp.rc != 0
+  notify:
+    - restart ldap
+  when: 
+    - inventory_hostname == groups['ldapserver'][0]
+  tags:
+    - ldap-replica-user
+
+- name: drop syncprov_mod.ldif file
+  template:
+    src: "syncprov_mod.ldif.j2"
+    dest: "/tmp/syncprov_mod.ldif"
+    mode: 0644
+  notify:
+    - restart ldap
+  when: 
+    - inventory_hostname == groups['ldapserver'][0]
+  tags:
+    - ldap-syncprov_mod
+    - ldap-ldif-files
+
+- name: Check whether the module syncprov.la already loaded
+  command: cat /etc/openldap/slapd.d/cn\=config/cn\=module\{0\}.ldif
+  register: checkmodule
+  failed_when: False
+  changed_when: False
+  when:
+    - inventory_hostname == groups['ldapserver'][0]
+  tags:
+    - ldap-syncprov_mod
+
+- name: config ldap syncprov_mod
+  command: "ldapadd -w {{ ldap_admin_info.admin_password }} -Y EXTERNAL -H ldapi:/// -f /tmp/syncprov_mod.ldif"
+  register: ldap_syncprov_mod
+  changed_when: ldap_syncprov_mod.rc != 0
+  notify:
+    - restart ldap
+  when: 
+    - inventory_hostname == groups['ldapserver'][0]
+    - checkmodule.stdout.find('syncprov.la') == -1
+  tags:
+    - ldap-syncprov_mod
+
+- name: drop syncprov.ldif file
+  template:
+    src: "syncprov.ldif.j2"
+    dest: "/tmp/syncprov.ldif"
+    mode: 0644
+  notify:
+    - restart ldap
+  when: 
+    - inventory_hostname == groups['ldapserver'][0]
+  tags:
+    - ldap-syncprov
+    - ldap-ldif-files
+
+- name: config ldap syncprov
+  command: "ldapadd -w {{ ldap_admin_info.admin_password }} -Y EXTERNAL -H ldapi:/// -f /tmp/syncprov.ldif"
+  register: ldap_syncprov
+  changed_when: ldap_syncprov.rc != 0
+  notify:
+    - restart ldap
+  when: 
+    - inventory_hostname == groups['ldapserver'][0]
+  tags:
+    - ldap-syncprov
+
+- name: drop replication.ldif file
+  template:
+    src: "replication_ms.ldif.j2"
+    dest: "/tmp/replication_ms.ldif"
+    mode: 0644
+  notify:
+    - restart ldap
+  when: 
+    - inventory_hostname != groups['ldapserver'][0]
+  tags:
+    - ldap-repli
+    - ldap-ldif-files
+
+- name: Check whether the replication already exists
+  command: cat /etc/openldap/slapd.d/cn\=config/olcDatabase\=\{2\}hdb.ldif
+  register: checkreplica
+  failed_when: False
+  changed_when: False
+  when:
+    - inventory_hostname != groups['ldapserver'][0]
+  tags:
+    - ldap-repli
+
+- name: config ldap repli
+  command: "ldapmodify -w {{ ldap_admin_info.admin_password }} -Y EXTERNAL -H ldapi:/// -f /tmp/replication_ms.ldif"
+  register: ldap_repli
+  changed_when: ldap_repli.rc != 0
+  notify:
+    - restart ldap
+  when: 
+    - inventory_hostname != groups['ldapserver'][0]
+    - checkreplica.stdout.find('olcSyncrepl') == -1
+  tags:
+    - ldap-repli
+
+- name: restart ldap service
+  systemd:
+    name: slapd
+    state: restarted
+    enabled: True

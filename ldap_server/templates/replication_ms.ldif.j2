@@ -1,0 +1,14 @@
+dn: olcDatabase={2}hdb,cn=config
+changetype: modify
+add: olcSyncRepl
+olcSyncRepl: rid={{ rid_ms }}
+  provider=ldap://{{ hostvars[groups['ldapserver'][0]]['ansible_default_ipv4']['address'] }}:389/
+  bindmethod=simple
+  binddn="uid={{  ldap_replica_user.username }},dc={{ ldap_admin_info.domain_name.split('.')[0] }},dc={{ ldap_admin_info.domain_name.split('.')[1] }}"
+  credentials={{ ldap_replica_user.password }}
+  searchbase="dc={{ ldap_admin_info.domain_name.split('.')[0] }},dc={{ ldap_admin_info.domain_name.split('.')[1] }}"
+  scope=sub
+  schemachecking=on
+  type=refreshAndPersist
+  retry="30 5 300 3"
+  interval=00:00:05:00

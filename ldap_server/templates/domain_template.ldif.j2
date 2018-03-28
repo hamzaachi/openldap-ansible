@@ -1,0 +1,17 @@
+dn: dc={{ ldap_admin_info.domain_name.split('.')[0] }},dc={{ ldap_admin_info.domain_name.split('.')[1] }}
+dc: {{ ldap_admin_info.domain_name.split('.')[0] }}
+objectClass: top
+objectClass: domain
+
+dn: cn={{ ldap_admin_info.admin_name }} ,dc={{ ldap_admin_info.domain_name.split('.')[0] }},dc={{ ldap_admin_info.domain_name.split('.')[1] }}
+objectClass: organizationalRole
+cn: {{ ldap_admin_info.admin_name }}
+description: LDAP Manager
+
+dn: ou=People,dc={{ ldap_admin_info.domain_name.split('.')[0] }},dc={{ ldap_admin_info.domain_name.split('.')[1] }}
+objectClass: organizationalUnit
+ou: People
+
+dn: ou=Group,dc={{ ldap_admin_info.domain_name.split('.')[0] }},dc={{ ldap_admin_info.domain_name.split('.')[1] }}
+objectClass: organizationalUnit
+ou: Group

@@ -1,0 +1,13 @@
+---
+- name: restart ldap
+  systemd:
+    name: "slapd"
+    state: "restarted"
+    enabled: yes
+
+- name: restart rsyslog
+  systemd:
+    name: "rsyslog"
+    state: "restarted"
+    enabled: yes 
+
