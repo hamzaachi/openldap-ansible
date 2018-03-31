@@ -23,7 +23,7 @@ Ansible Playbooks to install and manage OpenLDAP using Ansible 2.4 and higher. T
 
 		* To add new LDAP servers type (After defining them):
 		  ldap-deployer --tags ldapservers
-	
+
 		* To add new LDAP clients type (After defining them):
 		  ldap-deployer --tags ldapclients
 
