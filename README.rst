@@ -4,7 +4,7 @@ Ansible Playbooks to install and manage OpenLDAP using Ansible 2.4 and higher. T
         ===========================
 
  	To specify the settings and variables of your environment review the ``etc`` folder, which holds:
-		* `config.sh`: This file defines the variables of the target nodes like IP@, root pw, ssh key.....
+		* ``config.sh``: This file defines the variables of the target nodes like IP@, root pw, ssh key.....
 		* `*.pem` file: This file is the SSH key used to SSHing into the target nodes.
 		* `globals.yml`: This file defines the settings of LDAP server like domaine_name, admin_password, replication mode....It also used to define the list  of LDAP users to be added or removed. The variables that must be reviewed/changed are:
 			- ldap_ha_mode: To define which type of a high availabilty deployment when having more than 1 server.
